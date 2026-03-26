@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rod Force Calculator</title>
+<title>Rod Force Tool</title>
 
 <style>
 body {
     font-family: Arial, sans-serif;
-    background: #000; /* BLACK BACKGROUND */
+    background: #000;
+    color: #e0b800;
     margin: 0;
     padding: 20px;
-    color: gold; /* GOLD TEXT */
 }
 
 .container {
@@ -19,71 +19,81 @@ body {
     margin: auto;
     background: #111;
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(255,215,0,0.3);
+    border-radius: 12px;
+    border: 2px solid red;
+    box-shadow: 0 0 20px rgba(255,0,0,0.4);
 }
 
-.logo-container {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.logo-container img {
-    max-width: 160px;
-}
-
+/* HEADER */
 h2 {
     text-align: center;
-    color: gold;
+    color: red;
+    letter-spacing: 2px;
 }
 
+/* LABELS */
 label {
     font-weight: bold;
     display: block;
-    margin-bottom: 6px;
+    margin-top: 10px;
 }
 
+/* INPUTS */
 input, select {
     width: 100%;
     padding: 12px;
-    margin-bottom: 14px;
+    margin-top: 6px;
     font-size: 18px;
     border-radius: 6px;
-    border: 1px solid gold;
+    border: 1px solid red;
     background: #000;
-    color: gold;
+    color: #e0b800;
 }
 
-button.calc {
-    background: gold;
-    color: black;
-    border: none;
-    width: 100%;
-    padding: 14px;
-    font-size: 18px;
+/* PRESET BUTTONS */
+.preset-row {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.preset-btn {
+    flex: 1;
+    padding: 12px;
+    background: #222;
+    color: #e0b800;
+    border: 1px solid red;
     border-radius: 6px;
     cursor: pointer;
-}
-
-button.reset {
-    background: #333;
-    color: gold;
-    border: none;
-    width: 100%;
-    padding: 14px;
-    font-size: 18px;
-    border-radius: 6px;
-    margin-top: 10px;
-    cursor: pointer;
-}
-
-.result {
-    margin-top: 15px;
-    font-size: 20px;
     font-weight: bold;
-    text-align: center;
-    color: gold;
 }
+
+.preset-btn.active {
+    background: red;
+    color: black;
+}
+
+/* RESULT DISPLAY */
+.result-box {
+    margin-top: 20px;
+    padding: 20px;
+    text-align: center;
+    border-radius: 10px;
+    background: #000;
+    border: 2px solid red;
+}
+
+.main-value {
+    font-size: 36px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.sub-value {
+    font-size: 18px;
+    margin-top: 5px;
+}
+
 </style>
 </head>
 
@@ -91,39 +101,39 @@ button.reset {
 
 <div class="container">
 
-<div class="logo-container">
-    <img src="https://eibach.com/storage/img/branding/eibach-main-red.png">
-</div>
+<h2>ROD FORCE TOOL</h2>
 
-<h2>Rod Force</h2>
-
-<label>Input Type</label>
-<select id="rodType" onchange="updateRodUnits()">
-    <option value="force">Rod Force to Nitrogen Pressure</option>
-    <option value="pressure">Nitrogen Pressure to Rod Force</option>
+<label>Mode</label>
+<select id="rodType">
+    <option value="force">Force → Pressure</option>
+    <option value="pressure">Pressure → Force</option>
 </select>
 
-<label>Unit (Verify whether Dyno test is in LBS or Newtons)</label>
+<label>Unit</label>
 <select id="rodUnit"></select>
 
-<label>Value (Rod Force reading on Dyno or Nitrogen pressure specification)</label>
-<input id="rodValue">
+<label>Value</label>
+<input id="rodValue" placeholder="Enter value">
 
 <label>Shaft Size</label>
-<select id="shaft">
-    <option value="0.196">1/2 inch</option>
-    <option value="0.307" selected>5/8 inch</option>
-    <option value="0.601">7/8 inch</option>
-</select>
 
-<button class="calc" onclick="calculateRod()">Calculate</button>
-<button class="reset" onclick="resetRod()">Reset</button>
+<div class="preset-row">
+    <button class="preset-btn" onclick="setShaft(0.196,this)">1/2</button>
+    <button class="preset-btn active" onclick="setShaft(0.307,this)">5/8</button>
+    <button class="preset-btn" onclick="setShaft(0.601,this)">7/8</button>
+</div>
 
-<div id="rodResult" class="result"></div>
+<!-- RESULT -->
+<div class="result-box">
+    <div id="mainResult" class="main-value">--</div>
+    <div id="subResult" class="sub-value"></div>
+</div>
 
 </div>
 
 <script>
+let shaftFactor = 0.307;
+
 function updateRodUnits(){
     rodUnit.innerHTML="";
     if(rodType.value==="force"){
@@ -137,39 +147,48 @@ function updateRodUnits(){
     }
 }
 
+function setShaft(val,btn){
+    shaftFactor = val;
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    calculateRod();
+}
+
 function calculateRod(){
     let v = parseFloat(rodValue.value);
-    let f = parseFloat(shaft.value);
-
-    if (isNaN(v)) {
-        rodResult.innerText = "Enter a valid value";
+    if(isNaN(v)){
+        mainResult.innerText = "--";
+        subResult.innerText = "";
         return;
     }
 
+    let psi, bar, lbs, N;
+
     if (rodType.value === "force") {
         if (rodUnit.value === "N") v *= 0.224809;
+        psi = v / shaftFactor;
+        bar = psi / 14.5038;
 
-        let psi = v / f;
-        let bar = psi / 14.5038;
-
-        rodResult.innerText =
-            `Pressure = ${psi.toFixed(2)} psi (${bar.toFixed(2)} bar)`;
+        mainResult.innerText = psi.toFixed(1) + " PSI";
+        subResult.innerText = bar.toFixed(2) + " bar";
 
     } else {
-        let psi = (rodUnit.value === "bar") ? v * 14.5038 : v;
+        psi = (rodUnit.value === "bar") ? v * 14.5038 : v;
+        lbs = psi * shaftFactor;
+        N = lbs / 0.224809;
 
-        let lbs = psi * f;
-        let newtons = lbs / 0.224809;
-
-        rodResult.innerText =
-            `Force = ${lbs.toFixed(2)} lbs (${newtons.toFixed(2)} N)`;
-    }
+        mainResult.innerText = lbs.toFixed(1) + " LBS";
+        subResult.innerText = N.toFixed(1) + " N";
+   
 }
 
-function resetRod(){
-    rodValue.value="";
-    rodResult.innerText="";
-}
+/* LIVE CALCULATION */
+rodValue.oninput = calculateRod;
+rodUnit.onchange = calculateRod;
+rodType.onchange = () => {
+    updateRodUnits();
+    calculateRod();
+};
 
 updateRodUnits();
 </script>
