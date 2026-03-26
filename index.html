@@ -3,97 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rod Force Tool</title>
+<title>Rod Force Calculator</title>
 
 <style>
 body {
     font-family: Arial, sans-serif;
     background: #000;
-    color: #e0b800;
     margin: 0;
     padding: 20px;
+    color: #c5a000; /* DARKER GOLD */
 }
 
 .container {
     max-width: 500px;
     margin: auto;
     background: #111;
-    padding: 20px;
+    padding: 25px;
     border-radius: 12px;
-    border: 2px solid red;
-    box-shadow: 0 0 20px rgba(255,0,0,0.4);
+    box-shadow: 0 0 20px rgba(197,160,0,0.25);
 }
 
-/* HEADER */
 h2 {
     text-align: center;
-    color: red;
-    letter-spacing: 2px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
 }
 
-/* LABELS */
 label {
     font-weight: bold;
     display: block;
-    margin-top: 10px;
+    margin-bottom: 6px;
 }
 
-/* INPUTS */
 input, select {
     width: 100%;
     padding: 12px;
-    margin-top: 6px;
+    margin-bottom: 14px;
     font-size: 18px;
     border-radius: 6px;
-    border: 1px solid red;
+    border: 1px solid #c5a000;
     background: #000;
-    color: #e0b800;
+    color: #c5a000;
 }
 
-/* PRESET BUTTONS */
-.preset-row {
-    display: flex;
-    gap: 10px;
-    margin: 10px 0;
-}
-
-.preset-btn {
-    flex: 1;
-    padding: 12px;
-    background: #222;
-    color: #e0b800;
-    border: 1px solid red;
+button.calc {
+    background: #c5a000;
+    color: black;
+    border: none;
+    width: 100%;
+    padding: 14px;
+    font-size: 18px;
     border-radius: 6px;
     cursor: pointer;
-    font-weight: bold;
+    transition: 0.2s;
 }
 
-.preset-btn.active {
-    background: red;
-    color: black;
+button.calc:hover {
+    background: #e0b800;
 }
 
-/* RESULT DISPLAY */
-.result-box {
+button.reset {
+    background: #333;
+    color: #c5a000;
+    border: none;
+    width: 100%;
+    padding: 14px;
+    font-size: 18px;
+    border-radius: 6px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+/* 🔥 FANCY RESULT BOX */
+.result {
     margin-top: 20px;
-    padding: 20px;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: bold;
     text-align: center;
     border-radius: 10px;
-    background: #000;
-    border: 2px solid red;
+    background: linear-gradient(145deg, #111, #000);
+    border: 1px solid #c5a000;
+    box-shadow: 0 0 12px rgba(197,160,0,0.4);
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
 }
 
-.main-value {
-    font-size: 36px;
-    font-weight: bold;
-    letter-spacing: 2px;
+/* subtle glow when updated */
+.result.active {
+    box-shadow: 0 0 20px rgba(197,160,0,0.7);
+    transform: scale(1.02);
 }
-
-.sub-value {
-    font-size: 18px;
-    margin-top: 5px;
-}
-
 </style>
 </head>
 
@@ -101,39 +101,35 @@ input, select {
 
 <div class="container">
 
-<h2>ROD FORCE TOOL</h2>
+<h2>Rod Force</h2>
 
-<label>Mode</label>
-<select id="rodType">
-    <option value="force">Force → Pressure</option>
-    <option value="pressure">Pressure → Force</option>
+<label>Input Type</label>
+<select id="rodType" onchange="updateRodUnits()">
+    <option value="force">Rod Force to Nitrogen Pressure</option>
+    <option value="pressure">Nitrogen Pressure to Rod Force</option>
 </select>
 
-<label>Unit</label>
+<label>Unit (Verify whether Dyno test is in LBS or Newtons)</label>
 <select id="rodUnit"></select>
 
-<label>Value</label>
-<input id="rodValue" placeholder="Enter value">
+<label>Value (Rod Force reading on Dyno or Nitrogen pressure specification)</label>
+<input id="rodValue">
 
 <label>Shaft Size</label>
+<select id="shaft">
+    <option value="0.196">1/2 inch</option>
+    <option value="0.307" selected>5/8 inch</option>
+    <option value="0.601">7/8 inch</option>
+</select>
 
-<div class="preset-row">
-    <button class="preset-btn" onclick="setShaft(0.196,this)">1/2</button>
-    <button class="preset-btn active" onclick="setShaft(0.307,this)">5/8</button>
-    <button class="preset-btn" onclick="setShaft(0.601,this)">7/8</button>
-</div>
+<button class="calc" onclick="calculateRod()">Calculate</button>
+<button class="reset" onclick="resetRod()">Reset</button>
 
-<!-- RESULT -->
-<div class="result-box">
-    <div id="mainResult" class="main-value">--</div>
-    <div id="subResult" class="sub-value"></div>
-</div>
+<div id="rodResult" class="result"></div>
 
 </div>
 
 <script>
-let shaftFactor = 0.307;
-
 function updateRodUnits(){
     rodUnit.innerHTML="";
     if(rodType.value==="force"){
@@ -147,48 +143,47 @@ function updateRodUnits(){
     }
 }
 
-function setShaft(val,btn){
-    shaftFactor = val;
-    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    calculateRod();
-}
-
 function calculateRod(){
     let v = parseFloat(rodValue.value);
-    if(isNaN(v)){
-        mainResult.innerText = "--";
-        subResult.innerText = "";
+    let f = parseFloat(shaft.value);
+
+    if (isNaN(v)) {
+        rodResult.innerText = "Enter a valid value";
         return;
     }
 
-    let psi, bar, lbs, N;
+    let resultText = "";
 
     if (rodType.value === "force") {
         if (rodUnit.value === "N") v *= 0.224809;
-        psi = v / shaftFactor;
-        bar = psi / 14.5038;
 
-        mainResult.innerText = psi.toFixed(1) + " PSI";
-        subResult.innerText = bar.toFixed(2) + " bar";
+        let psi = v / f;
+        let bar = psi / 14.5038;
+
+        resultText = `Pressure = ${psi.toFixed(2)} psi (${bar.toFixed(2)} bar)`;
 
     } else {
-        psi = (rodUnit.value === "bar") ? v * 14.5038 : v;
-        lbs = psi * shaftFactor;
-        N = lbs / 0.224809;
+        let psi = (rodUnit.value === "bar") ? v * 14.5038 : v;
 
-        mainResult.innerText = lbs.toFixed(1) + " LBS";
-        subResult.innerText = N.toFixed(1) + " N";
-   
+        let lbs = psi * f;
+        let newtons = lbs / 0.224809;
+
+        resultText = `Force = ${lbs.toFixed(2)} lbs (${newtons.toFixed(2)} N)`;
+    }
+
+    rodResult.innerText = resultText;
+
+    // ✨ trigger glow animation
+    rodResult.classList.remove("active");
+    void rodResult.offsetWidth; // reset animation
+    rodResult.classList.add("active");
 }
 
-/* LIVE CALCULATION */
-rodValue.oninput = calculateRod;
-rodUnit.onchange = calculateRod;
-rodType.onchange = () => {
-    updateRodUnits();
-    calculateRod();
-};
+function resetRod(){
+    rodValue.value="";
+    rodResult.innerText="";
+    rodResult.classList.remove("active");
+}
 
 updateRodUnits();
 </script>
